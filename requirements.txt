@@ -3,5 +3,5 @@ streamlit>=1.28.0
 beautifulsoup4
 requests
 python-dotenv
-yfpy
+yfpy==16.0.3
 lxml
