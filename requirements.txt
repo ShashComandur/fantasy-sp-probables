@@ -1,6 +1,7 @@
-pandas
-streamlit
-bs4
+pandas>=2.0.0
+streamlit>=1.28.0
+beautifulsoup4
 requests
 python-dotenv
 yfpy
+lxml
