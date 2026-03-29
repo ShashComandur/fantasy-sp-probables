@@ -1,0 +1,6 @@
+pandas
+streamlit
+bs4
+requests
+python-dotenv
+yfpy
