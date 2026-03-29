@@ -144,25 +144,81 @@ def get_team_color(opponent_str: str) -> str:
     return MLB_TEAM_COLORS.get(team_abbr, "#808080")  # Default to gray
 
 
-def style_opponent_column(df: pd.DataFrame) -> pd.DataFrame:
+def add_team_badges(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Apply team color styling to the Opponent column.
+    Add colored team badges to the Opponent column.
 
     Args:
         df (pd.DataFrame): DataFrame with Opponent column
 
     Returns:
-        pd.DataFrame: Styled DataFrame
+        pd.DataFrame: DataFrame with badge-enhanced opponent column
     """
     if df.empty or "Opponent" not in df.columns:
         return df
+    
+    df_copy = df.copy()
+    
+    def create_badge(opponent_str):
+        color = get_team_color(opponent_str)
+        # Create HTML badge with colored circle
+        badge_html = f'<span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: {color}; margin-right: 8px; vertical-align: middle;"></span>{opponent_str}'
+        return badge_html
+    
+    df_copy["Opponent"] = df_copy["Opponent"].apply(create_badge)
+    return df_copy
 
-    def apply_color(row):
-        color = get_team_color(row["Opponent"])
-        return [f"background-color: {color}; color: white" if col == "Opponent" else "" 
-                for col in row.index]
 
-    return df.style.apply(apply_color, axis=1)
+def render_table_with_badges(df: pd.DataFrame, key_suffix: str = ""):
+    """
+    Render a dataframe with team color badges and a copy button.
+
+    Args:
+        df (pd.DataFrame): DataFrame to render
+        key_suffix (str): Unique suffix for widget keys
+    """
+    if df.empty:
+        return
+    
+    # Add badges to opponent column
+    df_with_badges = add_team_badges(df)
+    
+    # Convert to HTML
+    html = df_with_badges.to_html(escape=False, index=False)
+    
+    # Add CSS styling for the table
+    styled_html = f"""
+    <style>
+        .pitcher-table {{
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }}
+        .pitcher-table th {{
+            background-color: #f0f2f6;
+            padding: 8px;
+            text-align: left;
+            border-bottom: 2px solid #ddd;
+        }}
+        .pitcher-table td {{
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+        }}
+        .pitcher-table tr:hover {{
+            background-color: #f9f9f9;
+        }}
+    </style>
+    {html.replace('<table', '<table class="pitcher-table"')}
+    """
+    
+    # Render table with badges
+    st.markdown(styled_html, unsafe_allow_html=True)
+    
+    # Add copy button with tab-separated data
+    copy_text = df.to_csv(sep="\t", index=False)
+    with st.expander("📋 Copy to Clipboard"):
+        st.code(copy_text, language=None)
+        st.caption("Select the text above and copy (Ctrl+C / Cmd+C)")
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -428,7 +484,7 @@ def extract_dates_from_headers(soup: BeautifulSoup) -> Dict[int, str]:
                     year = current_year
 
                 date_obj = datetime(year, month, day)
-                dates[idx] = date_obj.strftime("%Y-%m-%d")
+                dates[idx] = date_obj.strftime("%m/%d/%Y")
             except ValueError:
                 pass
 
@@ -655,11 +711,7 @@ def main():
 
                 if not my_starts.empty:
                     st.subheader(f"Scheduled Starts ({len(my_starts)} total)")
-                    st.dataframe(
-                        style_opponent_column(my_starts),
-                        hide_index=True,
-                        use_container_width=True,
-                    )
+                    render_table_with_badges(my_starts, "tab1_my_starts")
 
                     # Summary stats
                     col1, col2, col3 = st.columns(3)
@@ -704,11 +756,7 @@ def main():
 
                     if not opp_starts.empty:
                         st.subheader(f"Scheduled Starts ({len(opp_starts)} total)")
-                        st.dataframe(
-                            style_opponent_column(opp_starts),
-                            hide_index=True,
-                            use_container_width=True,
-                        )
+                        render_table_with_badges(opp_starts, "tab2_opp_starts")
 
                         # Summary stats
                         col1, col2, col3 = st.columns(3)
@@ -759,11 +807,7 @@ def main():
                         st.write(f"**Handedness:** {lefties} LHP, {righties} RHP")
 
                         # Show starts
-                        st.dataframe(
-                            style_opponent_column(my_starts[["Date", "Pitcher", "Opponent"]]),
-                            hide_index=True,
-                            use_container_width=True,
-                        )
+                        render_table_with_badges(my_starts[["Date", "Pitcher", "Opponent"]], "tab3_my_starts")
                     else:
                         st.info("No starts scheduled")
 
@@ -777,11 +821,7 @@ def main():
                         st.write(f"**Handedness:** {lefties} LHP, {righties} RHP")
 
                         # Show starts
-                        st.dataframe(
-                            style_opponent_column(opp_starts[["Date", "Pitcher", "Opponent"]]),
-                            hide_index=True,
-                            use_container_width=True,
-                        )
+                        render_table_with_badges(opp_starts[["Date", "Pitcher", "Opponent"]], "tab3_opp_starts")
                     else:
                         st.info("No starts scheduled")
             else:
